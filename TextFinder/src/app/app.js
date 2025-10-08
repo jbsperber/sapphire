@@ -42,13 +42,75 @@ app.on('conversationUpdate', async ({ send, activity }) => {
     const userAdded = membersAdded.some(member => member.id && member.id !== botId);
 
     if (userAdded) {
-      await send("Hello! I'm Sapphire TextFinder. Ask me to search for content across Teams and Outlook. Try: Q4, sales, or forecast.");
+      const cardActivity = {
+        type: 'message',
+        attachments: [
+          {
+            contentType: 'application/vnd.microsoft.card.adaptive',
+            content: {
+              $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+              type: "AdaptiveCard",
+              version: "1.4",
+              body: [
+                {
+                  type: "TextBlock",
+                  text: "Hello — I'm Sapphire TextFinder",
+                  weight: "Bolder",
+                  size: "Large"
+                },
+                {
+                  type: "TextBlock",
+                  text: "I can search Teams and Outlook for messages and emails. Try one of the quick searches or type your own query.",
+                  wrap: true,
+                  spacing: "None"
+                },
+                {
+                  type: "TextBlock",
+                  text: "Quick suggestions:",
+                  weight: "Bolder",
+                  separator: true
+                },
+                {
+                  type: "TextBlock",
+                  text: "• Q4\n• sales\n• forecast",
+                  wrap: true,
+                  spacing: "None"
+                }
+              ],
+              actions: [
+                {
+                  type: "Action.Submit",
+                  title: "Search: Q4",
+                  data: { __type: "sapphire.search", query: "Q4" }
+                },
+                {
+                  type: "Action.Submit",
+                  title: "Search: sales",
+                  data: { __type: "sapphire.search", query: "sales" }
+                },
+                {
+                  type: "Action.Submit",
+                  title: "Search: forecast",
+                  data: { __type: "sapphire.search", query: "forecast" }
+                },
+                {
+                  type: "Action.OpenUrl",
+                  title: "Learn more",
+                  url: "https://learn.microsoft.com/microsoft-365"
+                }
+              ]
+            }
+          }
+        ]
+      };
+
+      await send(cardActivity);
     }
   } catch (error) {
     console.error('Error in conversationUpdate handler:', error);
   }
 });
-
+ 
 // // Handle incoming messages with mock search
 // app.on('message', async ({ send, activity }) => {
 //   try {
@@ -273,21 +335,74 @@ app.on('message', async ({ send, activity }) => {
       );
     }
 
-    // Create results message
-    let resultsText = `🔍 **Search Results for: "${query}"**\n\n`;
+    // Create adaptive card for results
+    const cardActivity = {
+      type: 'message',
+      attachments: [
+        {
+          contentType: 'application/vnd.microsoft.card.adaptive',
+          content: {
+            $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+            type: "AdaptiveCard",
+            version: "1.4",
+            body: [
+              {
+                type: "TextBlock",
+                text: `🔍 Search Results for: "${query}"`,
+                weight: "Bolder",
+                size: "Large"
+              }
+            ]
+          }
+        }
+      ]
+    };
 
     if (filtered.length === 0) {
-      resultsText += "❌ No matches found.\n\n";
-      resultsText += "Try searching for: **Q4**, **sales**, or **forecast**";
+      cardActivity.attachments[0].content.body.push(
+        {
+          type: "TextBlock",
+          text: "❌ No matches found.",
+          wrap: true
+        },
+        {
+          type: "TextBlock",
+          text: "Try searching for: **Q4**, **sales**, or **forecast**",
+          wrap: true
+        }
+      );
     } else {
       filtered.forEach((item, index) => {
-        resultsText += `**${index + 1}. ${item.source}: ${item.title}**\n`;
-        resultsText += `${item.snippet}\n`;
-        resultsText += `🔗 [Open in ${item.source}](${item.link})\n\n`;
+        cardActivity.attachments[0].content.body.push(
+          {
+            type: "Container",
+            items: [
+              {
+                type: "TextBlock",
+                text: `${index + 1}. ${item.source}: ${item.title}`,
+                weight: "Bolder",
+                wrap: true
+              },
+              {
+                type: "TextBlock",
+                text: item.snippet,
+                wrap: true
+              }
+            ],
+            separator: true
+          }
+        );
       });
+
+      // Add action buttons for each result
+      cardActivity.attachments[0].content.actions = filtered.map((item, index) => ({
+        type: "Action.OpenUrl",
+        title: `Open in ${item.source}`,
+        url: item.link
+      }));
     }
 
-    await send(resultsText);
+    await send(cardActivity);
   } catch (error) {
     console.error('Error in message handler:', error);
     await send("Sorry, there was an error processing your search: " + error.message);
