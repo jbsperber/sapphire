@@ -34,6 +34,21 @@ const app = new App({
   storage
 });
 
+// Send a greeting when the chat/conversation is opened
+app.on('conversationUpdate', async ({ send, activity }) => {
+  try {
+    const membersAdded = activity.membersAdded || [];
+    const botId = activity.recipient && activity.recipient.id;
+    const userAdded = membersAdded.some(member => member.id && member.id !== botId);
+
+    if (userAdded) {
+      await send("Hello! I'm Sapphire TextFinder. Ask me to search for content across Teams and Outlook. Try: Q4, sales, or forecast.");
+    }
+  } catch (error) {
+    console.error('Error in conversationUpdate handler:', error);
+  }
+});
+
 // Handle incoming messages with mock search
 app.on('message', async ({ send, activity }) => {
   try {
@@ -99,8 +114,6 @@ app.on('message', async ({ send, activity }) => {
     await send("Sorry, there was an error processing your search: " + error.message);
   }
 });
-
-
 
 app.on('message.submit.feedback', async ({ activity }) => {
   //add custom feedback process logic here
